@@ -7,6 +7,7 @@ from ..selection.FPS import FeatureFPS
 from ..selection.CUR import FeatureCUR
 from .simple_fps import FPS
 from .simple_cur import CUR
+from .meta_selectors import BlockSelector, RollingSelector
 
 
-__all__ = ["FeatureFPS", "FeatureCUR", "FPS", "CUR"]
+__all__ = ["FeatureFPS", "FeatureCUR", "FPS", "CUR", "BlockSelector", "RollingSelector"]
