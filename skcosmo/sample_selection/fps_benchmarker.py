@@ -188,7 +188,7 @@ class VoronoiBenchmark(VoronoiFPS):
         self.start_ = time.time()
         self.times_ = np.zeros(n_to_select)
         self.n_dist_calc_each_ = np.zeros((2, n_to_select))
-        self.n_dist_calc_each_[1] = np.arange(n_to_select)
+        #self.n_dist_calc_each_[1] = np.arange(n_to_select)
         super()._init_greedy_search(X, y, n_to_select)
 
     def _continue_greedy_search(self, X, y, n_to_select):
@@ -204,10 +204,11 @@ class VoronoiBenchmark(VoronoiFPS):
     def _get_active(self, X, last_selected):
         active_points = super()._get_active(X, last_selected)
 
-        if len(active_points) / X.shape[1] > (1.0 / 6.0):
+        if len(active_points) / X.shape[1] > self.full_fraction:
             self.n_dist_calc_each_[0][self.n_selected_ - 1] = X.shape[-1]
         else:
             self.n_dist_calc_each_[0][self.n_selected_ - 1] = len(active_points)
+        self.n_dist_calc_each_[1][self.n_selected_ - 1] = self.n_active_cells_-1
         return active_points
 
     def _update_post_selection(self, X, y, last_selected):
@@ -260,11 +261,11 @@ if __name__ == "__main__":
     X *= 1 / (1.0 + np.arange(X.shape[1]) ** 2)
 
     sb_time = -time.time()
-    times, calcs, idx, sb = run(SimpleBenchmark, X, n_features_to_select=1000)
+    times, calcs, idx, sb = run(SimpleBenchmark, X, n_features_to_select=5000)
     sb_time += time.time()
 
     vb_time = -time.time()
-    vtimes, vcalcs, vidx, vb = run(VoronoiBenchmark, X, n_features_to_select=1000)
+    vtimes, vcalcs, vidx, vb = run(VoronoiBenchmark, X, n_features_to_select=5000)
     vb_time += time.time()
 
     print("Total timing: SIMPLE: ", sb_time, "  VORONOI: ", vb_time)

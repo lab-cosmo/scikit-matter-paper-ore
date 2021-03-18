@@ -50,8 +50,14 @@ class VoronoiFPS(FPS):
 
         n_features = X.shape[1]
         """index of the voronoi cell associated with each of the columns of X"""
-        self.vlocation_of_idx = np.full(n_features, -1)
-
+        self.vlocation_of_idx = np.full(n_features, -1)        
+        
+        """we might choose to use a smaller number of cells to reduce the number of direct distance calculations"""
+        self.n_active_cells_ = 0 
+        self.max_active_dist_ = np.inf
+        self.active_cell_dist_ = np.full(X.shape[1], np.inf)
+        self.active_cell_vidx_ = np.full(n_features, -1)
+        
         """quarter of the square distance between new selected point and previously
         selected points"""
         self.sel_d2q_ = np.zeros(self.n_features_to_select, float)
@@ -124,10 +130,10 @@ class VoronoiFPS(FPS):
             worse that recomputing (TODO: verify!)
             """
         # calculation in a single block
-        self.sel_d2q_[: self.n_selected_] = (
-            self.norms_[self.selected_idx_[: self.n_selected_]]
+        self.sel_d2q_[: self.n_active_cells_] = (
+            self.norms_[self.selected_idx_[: self.n_active_cells_]]
             + self.norms_[last_selected]
-            - 2 * (self.X_selected_[:, : self.n_selected_].T @ X[:, last_selected])
+            - 2 * (self.X_selected_[:, : self.n_active_cells_].T @ X[:, last_selected])
         ) * 0.25
 
         """
@@ -144,7 +150,7 @@ class VoronoiFPS(FPS):
          but |d(XS) - d(SL)|^2>= d(XS)^2 if and only if d(SL)/2 > d(SX)
         """
         active_points = np.where(
-            self.sel_d2q_[self.vlocation_of_idx] < self.haussdorf_
+            self.sel_d2q_[self.active_cell_vidx_] < self.active_cell_dist_
         )[0]
 
         return active_points
@@ -163,7 +169,7 @@ class VoronoiFPS(FPS):
             ncomp = np.shape(self.haussdorf_)[0]
         else:
             active_points = self._get_active(X, last_selected)
-            self.number_calculated_dist = self.n_selected_
+            self.number_calculated_dist = self.n_active_cells_
 
             # we need to compute distances between the new point and all the points
             # in the active Voronoi cells.
@@ -197,6 +203,13 @@ class VoronoiFPS(FPS):
 
         if len(updated_points) > 0:
             self.vlocation_of_idx[updated_points] = self.n_selected_
+            if True or np.max(self.haussdorf_)*2 < self.max_active_dist_:                
+                #print("increasing active cell size", np.max(self.haussdorf_))
+                self.active_cell_dist_[:] = self.haussdorf_
+                self.max_active_dist_ = np.max(self.haussdorf_)
+                self.n_active_cells_ = self.n_selected_+1
+                self.active_cell_vidx_[:] = self.vlocation_of_idx
+                self.active_cell_vidx_[:] = self.vlocation_of_idx
 
         assert self.vlocation_of_idx[last_selected] == self.n_selected_
 
