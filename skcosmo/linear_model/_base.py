@@ -23,7 +23,7 @@ class OrthogonalRegression(MultiOutputMixin, RegressorMixin):
         If this parameter is set to False X and y are padded with zeros to the larger
         number of features of X and y. The projection method is similar
         to the procedure in the computation GFRD in the first version of
-        Ref. [Goscinski2021]_. The method has been adapted obtain a full weight matrix.
+        Ref. [Goscinski2021]_. The method has been adapted to obtain a full weight matrix.
 
         The projection can introduce nonanalytic behavior with respect to
         changes in dimensions of X for cases where X n_features > y n_targets.
