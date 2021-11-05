@@ -1,7 +1,7 @@
+import numpy as np
 import sklearn.model_selection
 from sklearn.utils import indexable
 from sklearn.utils.validation import _num_samples
-
 
 def train_test_split(*arrays, **options):
     """This is an extended version of the sklearn train test split supporting
@@ -78,3 +78,18 @@ def train_test_split(*arrays, **options):
         return train_test_sets
     else:
         return sklearn.model_selection.train_test_split(*arrays, **options)
+
+def frame_groups(frames):
+    """ Creates a list of group IDs associated with a series of ASE frames that
+    point to the frame each atom center belongs to. If present, does the indexing
+    referring only to the atoms selected by the `center_atoms_mask` array.
+    """
+
+    groups = []
+    for idx_f, f in enumerate(frames):
+        if "center_atoms_mask" in f.arrays:
+            n_atoms = np.count_nonzero(f.arrays["center_atoms_mask"])
+        else:
+            n_atoms = len(f.symbols)
+        groups += [idx_f] * n_atoms
+    return np.asarray(groups, dtype=int)
