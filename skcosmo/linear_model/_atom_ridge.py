@@ -4,6 +4,7 @@ from sklearn.base import (
     RegressorMixin,
     BaseEstimator
 )
+
 from sklearn.linear_model import Ridge
 
 class AtomRidge(BaseEstimator, MultiOutputMixin, RegressorMixin):

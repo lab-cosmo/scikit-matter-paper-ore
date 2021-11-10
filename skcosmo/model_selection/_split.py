@@ -36,6 +36,8 @@ def train_test_split(*arrays, **options):
     stratify : array-like, default=None
         If not None, data is split in a stratified fashion, using this as
         the class labels.
+    groups : array-like, default = None
+        If not None, data is split keeping the groups together
     train_test_overlap : bool, default=False
         If True, and train and test set are both not None, the train and test
         set may overlap.
@@ -48,6 +50,7 @@ def train_test_split(*arrays, **options):
     train_test_overlap = options.pop("train_test_overlap", False)
     test_size = options.get("test_size", None)
     train_size = options.get("train_size", None)
+
 
     if train_test_overlap and train_size is not None and test_size is not None:
         # checks from sklearn
@@ -79,10 +82,24 @@ def train_test_split(*arrays, **options):
     else:
         return sklearn.model_selection.train_test_split(*arrays, **options)
 
-def frame_groups(frames):
+from itertools import chain
+from sklearn.utils import indexable, _safe_indexing
+
+def atom_groups_by_frame(frames):
     """ Creates a list of group IDs associated with a series of ASE frames that
     point to the frame each atom center belongs to. If present, does the indexing
     referring only to the atoms selected by the `center_atoms_mask` array.
+
+    Parameters
+    ----------
+    frames: list of ASE atom frames, used to infer the indexing of atoms to frames.
+            all the atoms with `center_atom_mask[i] = True` are considered to be
+            active - i.e. the targets will contain a list of all such atoms, in the
+            same order as they appear in the frames.
+
+    Returns
+    -------
+    groups: frame IDs for all the active atoms in the data set
     """
 
     groups = []
@@ -92,4 +109,38 @@ def frame_groups(frames):
         else:
             n_atoms = len(f.symbols)
         groups += [idx_f] * n_atoms
+
     return np.asarray(groups, dtype=int)
+
+def train_test_split_by_frame(frames, *arrays, **options):
+    """ Splits a dataset of atom-centered data into train and test sets along
+    frame boundaries, using GroupShuffleSplit and atom_groups_by_frame to
+    determine the list of frame IDs of each atomic center. Also returns a
+    list of frame IDs for each of the train and test samples, that can be
+    used to further keep the frames together in CV folding.
+
+    Parameters
+    ----------
+    frames: list of ASE atom frames, used to infer frame indexing (see also
+            `atom_groups_by_frame`
+
+    *arrays, **options: arrays to perform the splitting, will be passed as
+            arguments to GroupShuffleSplit
+
+    Returns
+    -------
+    [train, test, ...], group_train, group_test :
+            sequence of (train, test) splits of each array, plus the split of
+            the frame IDs
+    """
+
+    groups = atom_groups_by_frame(frames)
+    arrays += (groups,)
+    arrays = indexable(*arrays)
+
+    train_idx, test_idx = next(sklearn.model_selection.GroupShuffleSplit(n_splits=2, **options).split(arrays[0], arrays[1], groups))
+    return list(
+        chain.from_iterable(
+            (_safe_indexing(a, train_idx), _safe_indexing(a, test_idx)) for a in arrays
+        )
+    )
