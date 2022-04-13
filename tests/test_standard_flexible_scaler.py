@@ -40,6 +40,19 @@ class ScalerTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             model.fit_transform(X, sample_weight=wts_dim)
 
+    def test_partial_fit_transform_pf(self):
+        """Checks that in the case of normalization by columns,
+        the result is the same as in the case of using the package from sklearn
+        """
+        X = self.random_state.uniform(0, 100, size=(3, 3))
+        model = StandardFlexibleScaler(column_wise=True)
+        transformed_skcosmo = model.partial_fit(X).transform(X)
+        transformed_sklearn = StandardScaler().fit_transform(X)
+        self.assertTrue(
+            (np.isclose(transformed_sklearn, transformed_skcosmo, atol=1e-12)).all(),
+            f'partial_fit test diff {np.linalg.norm(transformed_sklearn-transformed_skcosmo)}'
+        )
+
     def test_fit_transform_pf(self):
         """Checks that in the case of normalization by columns,
         the result is the same as in the case of using the package from sklearn

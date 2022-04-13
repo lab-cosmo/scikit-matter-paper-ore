@@ -9,6 +9,7 @@ from sklearn.utils.validation import (
     _check_sample_weight,
     check_is_fitted,
 )
+from sklearn.utils.extmath import _incremental_mean_and_var
 
 
 class StandardFlexibleScaler(TransformerMixin, BaseEstimator):
@@ -120,8 +121,64 @@ class StandardFlexibleScaler(TransformerMixin, BaseEstimator):
         self.column_wise = column_wise
         self.rtol = rtol
         self.atol = atol
-        self.n_samples_seen_ = 0
         self.copy = False
+
+    def partial_fit(self, X, y=None, sample_weight=None):
+        first_pass = not hasattr(self, "n_samples_seen_")
+
+        if first_pass:
+            self.n_samples_seen_ = 0
+            self.n_features_ = X.shape[1]
+            self.scale_ = 1.0
+            if self.with_mean:
+                self.mean_ = np.zeros(self.n_features_)
+            else:
+                self.mean_ = 0 
+            if self.with_std:
+                self.var_ = 0.0
+            else:
+                self.var_ = None
+            
+        if self.with_std and self.with_mean:
+                self.mean_, self.var_, self.n_samples_seen_ = _incremental_mean_and_var(
+                    X,
+                    self.mean_,
+                    self.var_,
+                    self.n_samples_seen_,
+                    sample_weight=sample_weight
+                )
+        elif self.with_std and not(self.with_mean):
+                _, self.var_, self.n_samples_seen_ = _incremental_mean_and_var(
+                    X,
+                    0,
+                    self.var_,
+                    self.n_samples_seen_,
+                    sample_weight=sample_weight
+                )
+        elif not(self.with_std) and self.with_mean:
+                self.mean_, _, self.n_samples_seen_ = _incremental_mean_and_var(
+                    X,
+                    self.mean_,
+                    1,
+                    self.n_samples_seen_,
+                    sample_weight=sample_weight
+                )
+
+        if self.with_std:
+            if self.column_wise:
+                if np.any(self.var_ < self.atol + abs(self.mean_) * self.rtol):
+                    raise ValueError("Cannot normalize a feature with zero variance")
+                self.scale_ = np.sqrt(self.var_)
+            else:
+                if np.any(self.var_ < self.atol + abs(self.mean_) * self.rtol):
+                    raise ValueError("Cannot normalize a feature with zero variance")
+                self.scale_ = np.sqrt(self.var_)
+                var_sum = self.var_.sum()
+                if var_sum < abs(np.mean(self.mean_)) * self.rtol + self.atol:
+                    raise ValueError("Cannot normalize a matrix with zero variance")
+                self.scale_ = np.sqrt(var_sum)
+
+        return self
 
     def fit(self, X, y=None, sample_weight=None):
         """Compute mean and scaling to be applied for subsequent normalization.
@@ -592,3 +649,15 @@ class SparseKernelCenterer(TransformerMixin, BaseEstimator):
         """
         self.fit(Knm=Knm, Kmm=Kmm, sample_weight=sample_weight)
         return self.transform(Knm)
+
+    def _reset(self):
+        """Reset internal data-dependent state of the scaler, if necessary.
+        __init__ parameters are not touched.
+        """
+        # Checking one attribute is enough, because they are all set together
+        # in partial_fit
+        if hasattr(self, "scale_"):
+            del self.scale_
+            del self.n_samples_seen_
+            del self.mean_
+            del self.var_
