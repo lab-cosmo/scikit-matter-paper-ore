@@ -3,3 +3,6 @@ jupyter
 jupyter_contrib_nbextensions
 matplotlib
 tqdm
+numpy
+sklearn
+ase
