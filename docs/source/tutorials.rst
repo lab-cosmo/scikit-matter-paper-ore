@@ -1,6 +1,4 @@
-.. include:: examples/index.rst
-  :start-after: inclusion-examples-start
-  :end-before: inclusion-examples-end
+.. include:: ../../examples/README.rst
 
 .. toctree::
   :glob:
